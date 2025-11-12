@@ -1,20 +1,17 @@
 // prim法による迷路生成とDijkstra法(A*アルゴリズム)による最短経路探索(Fibbonacciヒープ使用)
 // マス距離は固定小数点数としている
 
-import java.util.List;
-import java.util.Collections;
-
 // ここの変数はいじってOK
 final boolean diagonal = false;       // 斜め移動の可否
-final boolean aStar = false;          // A*アルゴリズムの有効化
+final boolean aSter = false;          // A*アルゴリズムの有効化
 final boolean generateMaze = false;   // 迷路の自動生成、falseなら障害物を手書き
 
-final int fr = 100;                   // フレームレート
-final int perFrame = 1;               // 1フレームあたりの探索数(等倍時)
+final int fr = 60;                   // フレームレート
+final int perFrame = 2;               // 1フレームあたりの探索数(等倍時)
 final int speedRate = 10;             // Fキーを押したときの倍速レート
 final int rows = 101, cols = 101;     // 行数列数(迷路生成するときは奇数を推奨)
 final int vDist = 1000, dDist = 1414; // マスごとの縦横・斜めそれぞれの距離(縦横は1000、斜めは1414の固定小数点で近似)
-final int gridsize = 10, gapsize = 0; // 描画時のマスのサイズとマス間の隙間
+final int gridsize = 10, gapsize = 2; // 描画時のマスのサイズとマス間の隙間
 
 // ここからは触らないで
 final int w = (gridsize + gapsize) * cols + gapsize;
@@ -38,7 +35,7 @@ void setup() {
   frameRate(fr);
 
   marr = new Node[rows * cols];
-  for (int i = 0; i < rows * cols; i++) marr[i] = new Node(i, aStar, generateMaze);
+  for (int i = 0; i < rows * cols; i++) marr[i] = new Node(i, aSter, generateMaze);
   heap = new FiboHeap();
   rHeap = new RandomHeap();
   flag = false;
@@ -90,7 +87,7 @@ void draw() {
           int row = constrain((mouseY - gapsize) / (gapsize + gridsize), 0, rows - 1);
           int col = constrain((mouseX - gapsize) / (gapsize + gridsize), 0, cols - 1);
           int index = row * cols + col;
-          marr[index].state = Node.States.Blocked;
+          marr[index].state = -1;
         }
       }
     }
@@ -124,9 +121,9 @@ void draw() {
         phase = 4;
         return;
       }
-      marr[goal].state = Node.States.Undiscovered; // バグ防止
+      marr[goal].state = 0; // バグ防止
       heap.push(marr[start]);
-      marr[start].state = Node.States.Discovered; // スタートを発見済みに
+      marr[start].state = 1; // スタートを発見済みに
       marr[start].parent = null; // スタートの親はなし
       marr[start].dist = 0; //始点の距離だけ0に
       baseTime = millis();
@@ -146,9 +143,9 @@ void draw() {
 
     // 経路探索
     // A* algorithm
-    if (aStar) {
+    if (aSter) {
       for (int i = 0; i < pFrame && !flag; i++) {
-        flag = aStar();
+        flag = aSter();
       }
     }
     // Dijkstra's algorithm
@@ -170,7 +167,7 @@ void draw() {
   // 最短経路表示段
   else if (phase == 3) {
     while (trace != marr[start]) {
-      marr[trace.prev.index].state = Node.States.Path;
+      marr[trace.prev.index].state = 3;
       trace = trace.prev;
     }
     phase = 4;
@@ -187,9 +184,9 @@ void draw() {
 // 探索(自分のノードに対して隣接するノードをヒープに追加する)
 void pSearch(Node curNode, Node nextNode) {
   if (nextNode.prev == null) { // ヒープに存在しないなら追加
+    nextNode.prev = curNode;
     rHeap.push(nextNode);
   }
-  nextNode.prev = curNode;
   return;
 }
 // 1マスの周辺を全て探索
@@ -212,30 +209,29 @@ boolean prim() {
     if (between < 0 || between >= marr.length) {
       println("Error: betweenIndex out of bounds: " + between);
     } else {
-      marr[between].state = Node.States.Undiscovered; // 通路として開ける
+      marr[between].state = 0; // 通路として開ける
     }
-    marr[now].state = Node.States.Undiscovered;
-    marr[now].prev.state = Node.States.Undiscovered;
+    marr[now].state = 0;
+    marr[now].prev.state = 0;
   }
 
   // 周辺の探索
-  List<Node> neighbors = new List<Node>();
   // 2個上
-  if (nowRow >= 2) neighbors.add(marr[now - cols * 2])
-  // 2個下
-  if (nowRow <= rows - 3) neighbors.add(marr[now + cols * 2]);
-  // 2個左
-  if (nowCol >= 2) neighbors.add(marr[now - 2]);
-  // 2個右
-  if (nowCol <= cols - 3) neighbors.add(marr[now + 2]);
-
-  // Fisher-Yates shuffle
-  for (int i = neighbors.length - 1; i > 0; i--) {
-    int j = (int)Math.floor(Math.random() * (i + 1));
-    Collections.swap(neighbors, i, j);
+  if (nowRow >= 2) {
+    pSearch(marr[now], marr[now - cols * 2]);
   }
-
-  for (Node node : neighbors) pSearch(marr[now], node);
+  // 2個下
+  if (nowRow <= rows - 3) {
+    pSearch(marr[now], marr[now + cols * 2]);
+  }
+  // 2個左
+  if (nowCol >= 2) {
+    pSearch(marr[now], marr[now - 2]);
+  }
+  // 2個右
+  if (nowCol <= cols - 3) {
+    pSearch(marr[now], marr[now + 2]);
+  }
 
   // ヒープが空になってしまったらtrueを返す
   return rHeap.getN() == 0;
@@ -245,12 +241,12 @@ boolean prim() {
 // Prim法とやっていることはさほど変わっておらず、斜め方向の処理が追加されたぐらいである。
 // 探索(ある一方向について発見するか距離の更新を行う)
 void dSearch(Node curNode, Node nextNode, int newDist) {
-  if (nextNode.state == Node.States.Visited || nextNode.state == Node.States.Blocked) return;
+  if (nextNode.state == 2 || nextNode.state == -1) return;
   
   if (nextNode.state != 1) { // ヒープに存在しない
     nextNode.dist = newDist;
     nextNode.prev = curNode;
-    nextNode.state = Node.States.Discovered;
+    nextNode.state = 1;
     heap.push(nextNode);
   } else {                   // ヒープに存在する
     if (heap.prioritize(nextNode, newDist)) nextNode.prev = curNode;
@@ -263,8 +259,8 @@ boolean dijkstra() {
   int nowRow = now / cols;
   int nowCol = now % cols;
   heap.pop();
-  if (marr[now].state == Node.States.Visited || marr[now].state == Node.States.Blocked) return false; // 訪問済み、障害物は除く(そもそもpushしてないはずだけど)
-  marr[now].state = Node.States.Visited;
+  if (marr[now].state == 2 || marr[now].state == -1) return false; // 訪問済み、障害物は除く(そもそもpushしてないはずだけど)
+  marr[now].state = 2;
   if (now == goal) return true; // ゴールを訪問したなら探索は行う必要がない
   else { // ゴールでない中間ノードである場合探索する
     // 上隣
@@ -333,25 +329,25 @@ int estimate(int next, int goal) {
 }
 // 以下Dijkstra法と全く同じ
 void aSearch(Node curNode, Node nextNode, int newDist) {
-  if (nextNode.state == Node.States.Visited || nextNode.state == Node.States.Blocked) return;
+  if (nextNode.state == 2 || nextNode.state == -1) return;
   
-  if (nextNode.state != Node.States.Discovered) {
+  if (nextNode.state != 1) {
     nextNode.dist = newDist;
     nextNode.est = estimate(nextNode.index, goal);
     nextNode.prev = curNode;
-    nextNode.state = Node.States.Discovered;
+    nextNode.state = 1;
     heap.push(nextNode);
   } else {
     if (heap.prioritize(nextNode, newDist, estimate(nextNode.index, goal))) nextNode.prev = curNode;
   }
 }
-boolean aStar() {
+boolean aSter() {
   int now = heap.topIndex();
   if (now == -1) return false;
   int nowRow = now / cols;
   int nowCol = now % cols;
   heap.pop();
-  if (marr[now].state == Node.States.Visited || marr[now].state == Node.States.Blocked) return false;
+  if (marr[now].state == 2 || marr[now].state == -1) return false;
   if (now == goal) return true;
   else {
     if (nowRow != 0) {
@@ -399,11 +395,11 @@ void drawGrid() {
       if                 (i * cols + j == start) fill( 255, 100,   0); // スタート
       else if            (i * cols + j ==  goal) fill( 255, 255,   0); // ゴール
       else {
-        if      (marr[i * cols + j].state == Node.States.Discovered  ) fill( 255,   0,   0); // 発見済み
-        else if (marr[i * cols + j].state == Node.States.Visited     ) fill(   0, 255,   0); // 訪問済み
-        else if (marr[i * cols + j].state == Node.States.Blocked     ) fill( 180, 130,  80); // 障害物
-        else if (marr[i * cols + j].state == Node.States.Undiscovered) fill(  50,  50,  50); // 未発見
-        else if (marr[i * cols + j].state == Node.States.Path        ) fill(   0,   0, 255); // 最短経路
+        if      (marr[i * cols + j].state ==  1) fill( 255,   0,   0); // 発見済み
+        else if (marr[i * cols + j].state ==  2) fill(   0, 255,   0); // 訪問済み
+        else if (marr[i * cols + j].state == -1) fill( 180, 130,  80); // 障害物
+        else if (marr[i * cols + j].state ==  0) fill(  50,  50,  50); // 未発見
+        else if (marr[i * cols + j].state ==  3) fill(   0,   0, 255); // 最短経路
       }
       rect(j * (gridsize + gapsize) + gapsize, i * (gridsize + gapsize) + gapsize, gridsize, gridsize);
     }
@@ -415,7 +411,7 @@ void keyPressed() {
   if (phase == 4 && !flagKeyPressed) { // setup()での動作をもう一度書いてしまっているので直す余地あり
     noLoop();
     marr = new Node[rows * cols];
-    for (int i = 0; i < rows * cols; i++) marr[i] = new Node(i, aStar, generateMaze);
+    for (int i = 0; i < rows * cols; i++) marr[i] = new Node(i, aSter, generateMaze);
     heap = new FiboHeap();
     rHeap = new RandomHeap();
     trace = null;
