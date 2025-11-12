@@ -6,7 +6,6 @@ import java.util.ArrayList;
 
 public class Node {
   int dist;          // 優先度: 現時点での推定最短距離
-  int est;          // A*用のゴールまでの推定距離
   
   Node parent;      // ヒープ上の親ノードへの参照
   Node child;       // 自分が持つ子ノードのうち最も左のノードへの参照
@@ -19,15 +18,8 @@ public class Node {
   int index;        // marr上でのインデックスに対応
   Node prev;        // 経路上の自分の親ノード
   int state;        // 現在の状態を示す(-1:障害物 0:未発見 1:発見済み 2:訪問済み 3:最短経路)
+  int est;          // A*用のゴールまでの推定距離
   
-  public class States {
-    public static final int Blocked = -1;
-    public static final int Undiscovered = 0;
-    public static final int Discovered = 1;
-    public static final int Visited = 2;
-    public static final int Path = 3;
-  }
-
   public Node(int index, boolean aSter, boolean generateMaze) {
     this.dist = Integer.MAX_VALUE;
     this.parent = null;
@@ -38,8 +30,8 @@ public class Node {
     this.mark = false;
     this.index = index;
     this.prev = null;
-    if (generateMaze) this.state = Node.States.Blocked;
-    else              this.state = Node.States.Undiscovered;
+    if (generateMaze) this.state = -1;
+    else              this.state = 0;
     if (aSter) this.est = Integer.MAX_VALUE;
     else       this.est = 0;
   }
